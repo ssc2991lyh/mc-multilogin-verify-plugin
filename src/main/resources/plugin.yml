@@ -1,0 +1,35 @@
+name: ${pluginName}
+version: ${version}
+main: ${mainClass}
+
+# api-version 故意填 1.13：
+# 它只表示「按 1.13+ 的新方块/材质语义解释插件数据」，并不是最低运行版本限制。
+# 填 1.13 可以让插件在 1.13 及之后的所有版本上都不触发旧数据兼容层；
+# 而在 1.8~1.12 的服务端上，这个字段会被直接忽略（老版本还没有它），
+# 因此同一个 JAR 仍然能正常加载 —— 这是「单 JAR 全版本兼容」的关键一环。
+api-version: ${apiVersion}
+
+# 会话服务代理必须在第一个玩家可能连上来之前就装好，
+# 所以插件在服务器启动阶段（世界加载之前）就启用。
+load: STARTUP
+
+authors:
+  - wifi-left
+description: >-
+  将服务器登录流程对接到 MC-MultiLogin-service：提供详细的登录失败原因，
+  并在名称重复时自动改名重试。
+website: https://github.com/wifi-left/mc-multilogin-compat-mod
+
+commands:
+  multilogin:
+    description: 查看与管理 MCMultiLoginCompat。
+    usage: /multilogin <status|reload|renames>
+    aliases:
+      - mlogin
+      - mml
+    permission: mcmultilogin.admin
+
+permissions:
+  mcmultilogin.admin:
+    description: 允许使用 /multilogin 指令。
+    default: op

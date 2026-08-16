@@ -1,0 +1,162 @@
+import org.gradle.api.attributes.java.TargetJvmVersion
+
+plugins {
+	id 'java'
+}
+
+group = project.maven_group
+version = project.plugin_version
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = 'papermc'
+		url = 'https://repo.papermc.io/repository/maven-public/'
+	}
+}
+
+dependencies {
+	// 服务端 API：运行期由服务端提供，所以只参与编译（compileOnly），不打进 jar。
+	// paper-api 会顺带传递 gson + guava，业务代码里用到的这两个库无需再声明。
+	compileOnly "io.papermc.paper:paper-api:${project.paper_api_version}"
+
+	// Netty 由服务端自带，同样只编译不打包。
+	// 注意：netty-transport 提供 Channel / ChannelDuplexHandler / ChannelInitializer，
+	// 而 AttributeKey 在 netty-common —— LoginTapHandler 两个都要用，所以必须都声明。
+	// 虽然 transport 的 POM 会传递带出 common，但显式写出来更稳（不受上游 POM 变动影响）。
+	compileOnly "io.netty:netty-transport:${project.netty_version}"
+	compileOnly "io.netty:netty-common:${project.netty_version}"
+
+	compileOnly "com.google.code.gson:gson:${project.gson_version}"
+
+	// 说明：com.mojang:authlib 故意不作为编译依赖。
+	// 所有 authlib 类型（GameProfile / PropertyMap / ProfileResult / MinecraftSessionService）
+	// 全部通过反射访问，这样同一个 JAR 才能同时适配 authlib 1.x ~ 7.x 而无需重新编译
+	// —— 这是「单 JAR 全版本兼容」的关键前提之一。
+}
+
+def javaRelease = project.java_release as int
+
+/*
+ * 把「依赖解析用的 JVM 版本」和「产物字节码版本」解耦。
+ *
+ * 背景：paper-api 26.1.2 的 Gradle 模块元数据里声明了 org.gradle.jvm.version = 25
+ * （因为它自己是用 JDK 25 编译的）。而我们把 options.release 设成 8，Gradle 会据此
+ * 把 compileClasspath 的 TargetJvmVersion 属性也推导为 8，于是变体匹配失败，报
+ * “only compatible with JVM runtime version 25 or newer”，依赖直接解析不出来。
+ *
+ * 但这两件事本质上无关：
+ *   - 依赖解析：只需要挑出 paper-api 那个唯一的变体，用来提供编译期的类型签名；
+ *   - 字节码输出：由 javac 的 --release 8 决定，只约束「我们自己写的代码」。
+ * javac 完全可以在 -target 8 的前提下读取 JDK 25 编译出来的 class（它只读签名，
+ * 不会把依赖的字节码版本传染给产物）。
+ *
+ * 所以这里显式把 compileClasspath 的 TargetJvmVersion 抬到 25，只影响依赖解析，
+ * 产物仍然是 Java 8 字节码 —— 这一点由后面的 verifyBytecode 任务逐个 class 校验兜底。
+ */
+configurations.named('compileClasspath') {
+	attributes {
+		attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	// 用 --release 而不是 sourceCompatibility/targetCompatibility：
+	// --release 会同时锁定「语法版本 + 可用的 JDK API 边界」，
+	// 编译期就能拦住误用 Java 9+ 的 API（例如 List.of / HttpClient），
+	// 从而保证产物真的能在只装 Java 8 的老服务器上跑起来。
+	options.release = javaRelease
+	// 屏蔽 "source value 8 is obsolete" 提示 —— 这里瞄准 Java 8 是刻意选择。
+	options.compilerArgs += ['-Xlint:-options']
+}
+
+tasks.named('processResources') {
+	def tokens = [
+			version   : project.version.toString(),
+			apiVersion: project.bukkit_api_version.toString(),
+			pluginName: project.plugin_name.toString(),
+			mainClass : project.plugin_main.toString()
+	]
+	inputs.properties(tokens)
+	// plugin.yml 里的 ${...} 占位符由这里统一注入，
+	// 避免版本号 / 主类名在 gradle.properties 与 plugin.yml 两处各写一遍导致不一致。
+	filesMatching('plugin.yml') {
+		expand(tokens)
+	}
+}
+
+tasks.named('jar') {
+	archiveBaseName = project.archives_base_name
+	archiveVersion = project.plugin_version.toString()
+
+	from('LICENSE') {
+		rename { "${it}_${project.archives_base_name}" }
+	}
+
+	manifest {
+		attributes(
+				'Implementation-Title'  : project.plugin_name,
+				'Implementation-Version': project.plugin_version,
+				'Specification-Title'   : 'Bukkit-Plugin',
+				'Built-With-Paper-API'  : project.paper_api_version,
+				'Bytecode-Target'       : "Java ${project.java_release}"
+		)
+	}
+}
+
+/**
+ * 校验产物的字节码版本真的是 Java 8（major version 52）。
+ *
+ * 为什么值得单独做一个校验任务：「兼容老版本」这件事很容易在不知不觉中被破坏
+ * —— 只要有人把 options.release 改掉、或加了个走 Java 11 API 的依赖，
+ * 产物就会静默变成高版本字节码，然后在 1.8 老服上抛 UnsupportedClassVersionError。
+ * 用一个 check 任务把这条底线固定下来，比写在文档里靠人记住可靠得多。
+ */
+tasks.register('verifyBytecode') {
+	dependsOn tasks.named('jar')
+	doLast {
+		def jarFile = tasks.named('jar').get().archiveFile.get().asFile
+		def expectedMajor = javaRelease + 44   // Java 8 -> 52, Java 17 -> 61
+		def checked = 0
+		def bad = []
+
+		new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+			zip.entries().each { entry ->
+				if (!entry.name.endsWith('.class')) {
+					return
+				}
+				zip.getInputStream(entry).withCloseable { ins ->
+					def header = new byte[8]
+					if (ins.read(header) == 8) {
+						// class 文件头：CAFEBABE + minor(2字节) + major(2字节)
+						int major = ((header[6] & 0xFF) << 8) | (header[7] & 0xFF)
+						checked++
+						if (major != expectedMajor) {
+							bad << "${entry.name} (major=${major})"
+						}
+					}
+				}
+			}
+		}
+
+		if (!bad.isEmpty()) {
+			throw new GradleException("字节码版本校验失败，期望 major=${expectedMajor}：\n  " + bad.join("\n  "))
+		}
+		logger.lifecycle("字节码校验通过：${checked} 个 class 全部为 Java ${javaRelease} (major=${expectedMajor})")
+	}
+}
+
+tasks.named('build') {
+	dependsOn tasks.named('verifyBytecode')
+	doLast {
+		def jarFile = tasks.named('jar').get().archiveFile.get().asFile
+		logger.lifecycle("")
+		logger.lifecycle("插件产物: ${jarFile.absolutePath}")
+		logger.lifecycle("文件大小: ${(jarFile.length() / 1024.0).round(1)} KiB")
+	}
+}

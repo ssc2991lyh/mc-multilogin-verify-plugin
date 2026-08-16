@@ -1,0 +1,34 @@
+# ===========================================================================
+#  MCMultiLoginCompat
+# ---------------------------------------------------------------------------
+#  mc-multilogin-compat-mod（Fabric 模组）的 Bukkit 插件版。
+#  适用于 Bukkit / Spigot / Paper / Purpur。
+# ===========================================================================
+
+# 【必填】MC-MultiLogin-service 中某个登录方式的基础地址，
+# 即服务端配置里 method[].url 的值。
+# 插件会自己在后面拼接 /sessionserver/session/minecraft/hasJoined?...
+#
+#   api-url: "http://127.0.0.1:25600/login/my"
+#
+# 留空则插件不会挂钩登录流程（只提示、不改动原版验证），
+# 这是刻意的安全设计：避免服主以为在做验证、实际请求发去了空地址。
+api-url: ""
+
+# 当认证服务以 DUPLICATE_NAME（名称重复）拒绝登录时，
+# 它会在 availableId 字段里返回一个可用的名字。
+# 开启本项后，插件会自动用那个名字重试一次登录，
+# 并把「原名 -> 新名」的映射记录到 renames.json。
+auto-rename: true
+
+# 每次请求 MC-MultiLogin-service 的超时时间（秒）。
+request-timeout-seconds: 10
+
+# 当 api-url 缺失、或登录挂钩安装失败时怎么办：
+#   true  - 直接关闭服务器（与原 Fabric 模组行为一致），
+#           确保认证配置有问题时没人能进服。
+#   false - 仅记录日志，继续使用原版验证逻辑。
+shutdown-on-failure: false
+
+# 是否为每一次被拦截的登录输出额外日志。初次部署调试时建议打开。
+debug: false
