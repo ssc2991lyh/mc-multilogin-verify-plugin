@@ -4,6 +4,16 @@ plugins {
 	id 'java'
 }
 
+// 编译用的 JDK 必须 >= 25：paper-api 26.1.2 是用 JDK 25 编译的（class major=69），
+// 低于 25 的 javac 会报 "bad class file ... only recognizes class file versions up to ..."。
+// 注意这与产物字节码版本无关 —— 产物仍是 Java 8（见下方 options.release），
+// toolchain 只保证「编译 JDK 足以读取依赖」。
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
 group = project.maven_group
 version = project.plugin_version
 
