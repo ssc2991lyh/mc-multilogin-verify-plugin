@@ -12,19 +12,30 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
+
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
+
       - name: setup jdk
         uses: actions/setup-java@v4
         with:
           java-version: "21"
-          distribution: "microsoft"
+          distribution: "temurin"
+
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+
       - name: make gradle wrapper executable
-        run: chmod +x ./ghgradle.sh
-      - name: copy gradle-wrapper
+        run: chmod +x ./gradlew
+
+      - name: switch to official gradle wrapper
         run: sh ./ghgradle.sh
+
       - name: build
-        run: ./gradlew build
+        run: ./gradlew build --no-daemon
+
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:
