@@ -1,4 +1,4 @@
-# MCMultiLoginCompat
+# MC-MultiVerifyCompat
 
 > Bukkit / Purpur 服务端的多账户正版登录兼容 + QQ 绑定验证码门禁插件。
 
@@ -13,7 +13,7 @@
 
 - 正版 + 多 Yggdrasil API 并存登录（`config.yml` 外部服务 或 `config.json` 自包含，按需选择）。
 - 进服自动生成验证码、踢出提示直达、已验证欢迎、群内进出服播报。
-- 验证状态（verify.json）**只保存在 MC 服本地**，适合 MC 服与 AstrBot跨机部署。
+- 验证状态（verify.json）**只保存在 MC 服本地**，适合 MC 服与 AstrBot 跨机部署。
 - 两种 QQ 接码通道，按需选择：**OneBot 直连** 或 **AstrBot 插件转发**。
 
 ## 架构（两套现成方案合并后的最终形态）
@@ -28,11 +28,6 @@ MC 服 (Linux)  MCMultiLoginCompat (本插件)
   └─ 验证入站（二选一，由 verifychannel 决定）
         ├─ onebot  ：自带 HTTP 入站监听，接收 OneBot 群消息 webhook
         └─ astrbot ：/multilogin verify <code> 指令
-
-QQ 群「验证 XXXXXX」
-  ├─ onebot 通道：OneBot 直接 webhook 推到 MC 服 → 标记 → OneBot 回群
-  └─ astrbot 通道：astrbot_plugin_mc_verify 收到 → 经 mcverify command/execute
-                   → MC 服执行 /multilogin verify <code> → 标记 → 回调回群
 ```
 
 > mcverify（AstrBot 端）只做「转发 + 收回调」，**不写 json、不轮询、不冻结**，所有状态都在 MC 服。
@@ -43,7 +38,7 @@ QQ 群「验证 XXXXXX」
 
 | 模式 | 配置位置 | 说明 |
 | --- | --- | --- |
-| **外部模式** | `config.yml` 的 `api-url` | 对接你已有的 Node 版 `MC-MultiLogin-service`（HTTP 请求）。 |
+| **外部模式** | `config.yml` 的 `api-url` | 可对接你已有的 `MC-MultiLogin-service`（HTTP 请求）。 |
 | **自包含模式** | `config.json` 的 `method[]` | 验证逻辑内嵌在插件进程内，无需外部 HTTP 服务。 |
 | **都不配** | — | 插件只注册指令、不接管登录，保持原版验证，避免服主误以为在验证。 |
 
