@@ -13,7 +13,7 @@
 
 - 正版 + 多 Yggdrasil API 并存登录（`config.yml` 外部服务 或 `config.json` 自包含，按需选择）。
 - 进服自动生成验证码、踢出提示直达、已验证欢迎、群内进出服播报。
-- 验证状态（verify.json）**只保存在 MC 服本地**，适合 MC 服（Linux）与 AstrBot（Windows）跨机部署。
+- 验证状态（verify.json）**只保存在 MC 服本地**，适合 MC 服与 AstrBot跨机部署。
 - 两种 QQ 接码通道，按需选择：**OneBot 直连** 或 **AstrBot 插件转发**。
 
 ## 架构（两套现成方案合并后的最终形态）
@@ -27,11 +27,11 @@ MC 服 (Linux)  MCMultiLoginCompat (本插件)
   ├─ verify.json：仅存在于 MC 服本地（插件数据目录）
   └─ 验证入站（二选一，由 verifychannel 决定）
         ├─ onebot  ：自带 HTTP 入站监听，接收 OneBot 群消息 webhook
-        └─ astrbot ：/multilogin verify <code> 指令（由 AstrBotAdapter 远程执行）
+        └─ astrbot ：/multilogin verify <code> 指令
 
 QQ 群「验证 XXXXXX」
   ├─ onebot 通道：OneBot 直接 webhook 推到 MC 服 → 标记 → OneBot 回群
-  └─ astrbot 通道：astrbot_plugin_mc_verify 收到 → 经 AstrBotAdapter command/execute
+  └─ astrbot 通道：astrbot_plugin_mc_verify 收到 → 经 mcverify command/execute
                    → MC 服执行 /multilogin verify <code> → 标记 → 回调回群
 ```
 
@@ -39,8 +39,7 @@ QQ 群「验证 XXXXXX」
 
 ## 登录验证模式（二选一，也可同时配）
 
-mcverify 门禁依赖 `MCMultiLoginCompat` 提供的 `/multilogin verify` 入口，
-而 `hasJoined` 验证本身有两种来源，**满足任一即接管登录，都不满足则安全 fail-open**：
+`hasJoined` 验证本身有两种来源，**满足任一即接管登录，都不满足则安全 fail-open**：
 
 | 模式 | 配置位置 | 说明 |
 | --- | --- | --- |
@@ -56,7 +55,7 @@ mcverify 门禁依赖 `MCMultiLoginCompat` 提供的 `/multilogin verify` 入口
 | 字段 | 说明 |
 | --- | --- |
 | `verifychannel` | `onebot` / `astrbot` / `both` |
-| `astrbottoken` | AstrBotAdapter 的 token（astrbot/both 用；留空则提示从 `plugins/AstrbotAdapter/config.yml` 复制） |
+| `astrbottoken` | mcverify 的 token（astrbot/both 用；留空则提示从 `plugins/MCMultiLogin/config.yml` 填写复制） |
 | `onebot_http_url` | OneBot HTTP 地址（onebot/both 用） |
 | `onebot_token` | OneBot access_token（可为空） |
 | `verify_webhook_port` | OneBot 把群消息推到本插件的端口（onebot/both 用，默认 8766） |
@@ -66,13 +65,13 @@ mcverify 门禁依赖 `MCMultiLoginCompat` 提供的 `/multilogin verify` 入口
 
 ### AstrBot 端插件（astrbot 通道）
 
-仓库同级：`astrbot_plugin_mc_verify`（`minecraft-qq-whitelist/` 下）。需配置：
+仓库： [`astrbot_plugin_mc_verify`](https://github.com/ssc2991lyh/astrbot_plugin_mc_verify)。需配置：
 
 | 字段 | 说明 |
 | --- | --- |
-| `mc_host` | AstrBotAdapter REST 地址（同机 127.0.0.1，否则 MC 服 IP） |
-| `mc_rest_port` | AstrBotAdapter 端口（默认 8765） |
-| `astrbottoken` | AstrBotAdapter 自动生成的 token |
+| `mc_host` | mcverify 地址（同机 127.0.0.1，否则 MC 服 IP） |
+| `mc_rest_port` | mcverify 端口（默认 8765） |
+| `astrbottoken` | 与 mcverify 配置的相同 token |
 | `group_id` | 监听「验证 XXXX」的群号（留空=所有群） |
 
 ## 构建
