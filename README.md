@@ -1,5 +1,9 @@
 # MC-MultiVerifyCompat
 
+> ⚠️ **本仓库已归档（archived），不再维护。** 新版本已迁移至
+> [`mc-multiverify-plugin`](https://github.com/ssc2991lyh/mc-multiverify-plugin)
+> （astrbot 通道改为直连回调，与 onebot 通道同构）。请使用新仓库。
+
 > Bukkit / Purpur 服务端的多账户正版登录兼容 + QQ 绑定验证码门禁插件。
 
 ## 项目简介
