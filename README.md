@@ -11,7 +11,7 @@
 
 ## 特性
 
-- 正版 + 多 Yggdrasil API 并存登录（自包含 `config.json`，无需外部 HTTP 服务）。
+- 正版 + 多 Yggdrasil API 并存登录（`config.yml` 外部服务 或 `config.json` 自包含，按需选择）。
 - 进服自动生成验证码、踢出提示直达、已验证欢迎、群内进出服播报。
 - 验证状态（verify.json）**只保存在 MC 服本地**，适合 MC 服（Linux）与 AstrBot（Windows）跨机部署。
 - 两种 QQ 接码通道，按需选择：**OneBot 直连** 或 **AstrBot 插件转发**。
@@ -36,6 +36,20 @@ QQ 群「验证 XXXXXX」
 ```
 
 > mcverify（AstrBot 端）只做「转发 + 收回调」，**不写 json、不轮询、不冻结**，所有状态都在 MC 服。
+
+## 登录验证模式（二选一，也可同时配）
+
+mcverify 门禁依赖 `MCMultiLoginCompat` 提供的 `/multilogin verify` 入口，
+而 `hasJoined` 验证本身有两种来源，**满足任一即接管登录，都不满足则安全 fail-open**：
+
+| 模式 | 配置位置 | 说明 |
+| --- | --- | --- |
+| **外部模式** | `config.yml` 的 `api-url` | 对接你已有的 Node 版 `MC-MultiLogin-service`（HTTP 请求）。 |
+| **自包含模式** | `config.json` 的 `method[]` | 验证逻辑内嵌在插件进程内，无需外部 HTTP 服务。 |
+| **都不配** | — | 插件只注册指令、不接管登录，保持原版验证，避免服主误以为在验证。 |
+
+> 默认 `config.json` 的 `method[]` 为空数组，首次安装即是 fail-open；
+> 需要自包含验证时手动填入 method 对象，然后重启或 `/multilogin reload`。
 
 ## 验证通道配置（verifyconfig.json）
 

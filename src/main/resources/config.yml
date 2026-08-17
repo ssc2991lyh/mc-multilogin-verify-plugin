@@ -5,14 +5,14 @@
 #  适用于 Bukkit / Spigot / Paper / Purpur。
 # ===========================================================================
 
-# 【必填】MC-MultiLogin-service 中某个登录方式的基础地址，
-# 即服务端配置里 method[].url 的值。
-# 插件会自己在后面拼接 /sessionserver/session/minecraft/hasJoined?...
+# 外部 MC-MultiLogin-service 的入口地址。
+# 即原 Node 服务里某个 method[].url 的完整地址；插件会在后面拼接
+# /sessionserver/session/minecraft/hasJoined?...
 #
 #   api-url: "http://127.0.0.1:25600/login/my"
 #
-# 留空则插件不会挂钩登录流程（只提示、不改动原版验证），
-# 这是刻意的安全设计：避免服主以为在做验证、实际请求发去了空地址。
+# 留空表示不走外部服务；此时若 config.json 的 method[] 也为空，
+# 插件不会接管登录流程（只注册指令、保持原版验证），安全 fail-open。
 api-url: ""
 
 # 当认证服务以 DUPLICATE_NAME（名称重复）拒绝登录时，
